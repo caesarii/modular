@@ -19,11 +19,15 @@ const {
 } = require('./utils')
 
 const newContext = require('./context/newContext')
+const isBrowser = require('./initial')
+
 
 
 // 进行封装, 核心在 newContext
 let requirejs = require('./req')
 const define = require('./define')
+
+
 
 (function (global, setTimeout) {
     let s
@@ -35,7 +39,7 @@ const define = require('./define')
     let currentlyAddingScript
     let mainScript
     let subPath
-    let version = '2.3.5'
+    
     let commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg
     let cjsRequireRegExp = /[^.]\s*requirejs\s*\(\s*["']([^'"\s]+)["']\s*\)/g
     let jsSuffixRegExp = /\.js$/
@@ -43,7 +47,6 @@ const define = require('./define')
     let op = Object.prototype
     let ostring = op.toString
     let hasOwn = op.hasOwnProperty
-    let isBrowser = !!(typeof window !== 'undefined' && typeof navigator !== 'undefined' && window.document)
     let isWebWorker = !isBrowser && typeof importScripts !== 'undefined'
     //PS3 indicates loaded and complete, but need to wait for complete
     //specifically. Sequence is 'loading', 'loaded', execution,
@@ -98,7 +101,7 @@ const define = require('./define')
      */
     var defContextName = '_'
     var contexts = {}
-    var req = requirejs
+    var req = requirejs.requirejs
 
     /**
      * Export require as a global, but only if it does not already exist.

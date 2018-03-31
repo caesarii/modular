@@ -17,108 +17,110 @@ const {
     makeError,
 } = require('./utils')
 
-const requirejs = function (deps, callback, errback, optional) {
+const {isBrowser, version, } = require('./initial')
 
-    //Find the right context, use default
-    var context
-    var config
-    var contextName = defContextName
 
-    // 映射实参与形参
-    // 第一个参数如果是 对象, 则该对象是 config
-    // 第二个参数如果是 数组, 则是依赖数组
-    // TODO 不应该这样
-    if (!isArray(deps) && typeof deps !== 'string') {
-        // deps is a config object
-        config = deps;
-        if (isArray(callback)) {
-            // Adjust args if there are dependencies
-            deps = callback;
-            callback = errback;
-            errback = optional;
-        } else {
-            deps = [];
+class Requirejs {
+    constructor() {
+        /**
+         * Execute something after the current tick
+         * of the event loop. Override for other envs
+         * that have a better solution than setTimeout.
+         * @param  {Function} fn function to execute later.
+         */
+        this.nextTick = typeof setTimeout !== 'undefined' ? function (fn) {
+            setTimeout(fn, 4);
+        } : function (fn) { fn(); }
+        
+        this.version = version;
+        
+        //Used to filter out dependencies that are already paths.
+        this.jsExtRegExp = /^\/|:|\?|\.js$/
+        this.isBrowser = isBrowser
+        /**
+         * Any errors that require explicitly generates will be passed to this
+         * function. Intercept/override it if you want custom error handling.
+         * @param {Error} err the error object.
+         */
+        this.onError = defaultOnError;
+    }
+    requirejs(deps, callback, errback, optional) {
+        
+        //Find the right context, use default
+        var context
+        var config
+        var contextName = defContextName
+    
+        // 映射实参与形参
+        // 第一个参数如果是 对象, 则该对象是 config
+        // 第二个参数如果是 数组, 则是依赖数组
+        // TODO 不应该这样
+        if (!isArray(deps) && typeof deps !== 'string') {
+            // deps is a config object
+            config = deps;
+            if (isArray(callback)) {
+                // Adjust args if there are dependencies
+                deps = callback;
+                callback = errback;
+                errback = optional;
+            } else {
+                deps = [];
+            }
         }
+        
+        // 处理 config
+        // config ={
+        //   context
+        //
+        // }
+        // context name
+        if (config && config.context) {
+            contextName = config.context;
+        }
+    
+        context = getOwn(contexts, contextName);
+        if (!context) {
+            context = contexts[contextName] = req.s.newContext(contextName);
+        }
+    
+        if (config) {
+            context.configure(config);
+        }
+    
+        return context.requirejs(deps, callback, errback);
     }
     
-    // 处理 config
-    // config ={
-    //   context
-    //
-    // }
-    // context name
-    if (config && config.context) {
-        contextName = config.context;
+    /**
+     * Support require.config() to make it easier to cooperate with other
+     * AMD loaders on globally agreed names.
+     */
+    config(config) {
+        return this.requirejs(config)
     }
-
-    context = getOwn(contexts, contextName);
-    if (!context) {
-        context = contexts[contextName] = req.s.newContext(contextName);
-    }
-
-    if (config) {
-        context.configure(config);
-    }
-
-    return context.requirejs(deps, callback, errback);
-};
-
-/**
- * Support require.config() to make it easier to cooperate with other
- * AMD loaders on globally agreed names.
- */
-requirejs.config = function (config) {
-    return requirejs(config);
-};
-
-/**
- * Execute something after the current tick
- * of the event loop. Override for other envs
- * that have a better solution than setTimeout.
- * @param  {Function} fn function to execute later.
- */
-requirejs.nextTick = typeof setTimeout !== 'undefined' ? function (fn) {
-    setTimeout(fn, 4);
-} : function (fn) { fn(); };
-
-requirejs.version = version;
-
-//Used to filter out dependencies that are already paths.
-requirejs.jsExtRegExp = /^\/|:|\?|\.js$/;
-requirejs.isBrowser = isBrowser;
-
-
-/**
- * Any errors that require explicitly generates will be passed to this
- * function. Intercept/override it if you want custom error handling.
- * @param {Error} err the error object.
- */
-requirejs.onError = defaultOnError;
-
-/**
- * Creates the node for the load command. Only used in browser envs.
- */
-requirejs.createNode = function (config, moduleName, url) {
-    var node = config.xhtml ?
+    
+    /**
+     * Creates the node for the load command. Only used in browser envs.
+     */
+    createNode(config, moduleName, url) {
+        var node = config.xhtml ?
             document.createElementNS('http://www.w3.org/1999/xhtml', 'html:script') :
             document.createElement('script');
-    node.type = config.scriptType || 'text/javascript';
-    node.charset = 'utf-8';
-    node.async = true;
-    return node;
-};
-
-
-/**
- * Does the request to load a module for the browser case.
- * Make this a separate function to allow other environments
- * to override it.
- *
- * @param {Object} context the require context to find state.
- * @param {String} moduleName the name of the module.
- * @param {Object} url the URL to the module.
- */
-requirejs.load = function (context, moduleName, url) {
+        node.type = config.scriptType || 'text/javascript';
+        node.charset = 'utf-8';
+        node.async = true;
+        return node;
+    }
+    
+    /**
+     * Does the request to load a module for the browser case.
+     * Make this a separate function to allow other environments
+     * to override it.
+     *
+     * @param {Object} context the require context to find state.
+     * @param {String} moduleName the name of the module.
+     * @param {Object} url the URL to the module.
+     */
+    load(context, moduleName, url) {
     var config = (context && context.config) || {},
         node;
     if (isBrowser) {
@@ -215,18 +217,20 @@ requirejs.load = function (context, moduleName, url) {
                             [moduleName]));
         }
     }
-};
+}
+    
+    /**
+     * Executes the text. Normally just uses eval, but can be modified
+     * to use a better, environment-specific call. Only used for transpiling
+     * loader plugins, not for plain JS modules.
+     * @param {String} text the text to execute/evaluate.
+     */
+    exec(text) {
+        /*jslint evil: true */
+        return eval(text);
+    }
+    
+}
 
-/**
- * Executes the text. Normally just uses eval, but can be modified
- * to use a better, environment-specific call. Only used for transpiling
- * loader plugins, not for plain JS modules.
- * @param {String} text the text to execute/evaluate.
- */
-requirejs.exec = function (text) {
-    /*jslint evil: true */
-    return eval(text);
-};
 
-
-module.exports = requirejs
+module.exports = new Requirejs()

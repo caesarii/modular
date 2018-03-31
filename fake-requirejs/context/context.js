@@ -16,6 +16,12 @@ const {
     intakeDefines,
 } = require('./utils')
 
+const {
+    mixin,
+} = require('../utils')
+
+const req = require('../req')
+
 // TODO
 const isBrowser = null
 const undefEvents = null

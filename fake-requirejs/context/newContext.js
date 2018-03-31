@@ -36,5 +36,8 @@ function newContext(contextName) {
     return context;
 }
 
+if(require.main === module) {
+    console.log('context', newContext('context_1_2'))
+}
 
 module.exports = newContext
