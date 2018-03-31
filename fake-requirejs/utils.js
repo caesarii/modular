@@ -15,7 +15,6 @@ function isArray(it) {
     return ostring.call(it) === '[object Array]';
 }
 
-
 /**
  * Helper function for iterating over an array. If the func returns
  * a true value, it will break out of the loop.
@@ -30,7 +29,6 @@ function each(ary, func) {
         }
     }
 }
-
 
 /**
  * Helper function for iterating over an array backwards. If the func
@@ -55,7 +53,6 @@ function getOwn(obj, prop) {
         return hasProp(obj, prop) && obj[prop];
 }
 
-
 /**
  * Cycles over properties in an object and calls a function for each
  * property value. If the function returns a truthy value, then the
@@ -71,7 +68,6 @@ function eachProp(obj, func) {
         }
     }
 }
-
 
 /**
  * Simple function to mix in properties from source into target,
@@ -98,7 +94,6 @@ function mixin(target, source, force, deepStringMixin) {
     return target;
 }
 
-
 //Similar to Function.prototype.bind, but the 'this' object is specified
 //first, since it is easier to read/figure out what 'this' will be.
 function bind(obj, fn) {
@@ -107,11 +102,9 @@ function bind(obj, fn) {
     };
 }
 
-
 function scripts() {
     return document.getElementsByTagName('script');
 }
-
 
 function defaultOnError(err) {
     throw err;
@@ -130,7 +123,6 @@ function getGlobal(value) {
     return g;
 }
 
-
 /**
  * Constructs an error with a pointer to an URL with more information.
  * @param {String} id the error ID that maps to an ID on a web page.
@@ -147,4 +139,23 @@ function makeError(id, msg, err, requireModules) {
         e.originalError = err;
     }
     return e;
+}
+
+module.exports = {
+    op,
+    ostring,
+    hasOwn,
+    commentReplace,
+    isFunction,
+    isArray,
+    each,
+    hasProp,
+    getOwn,
+    eachProp,
+    mixin,
+    bind,
+    scripts,
+    defaultOnError,
+    getGlobal,
+    makeError,
 }
