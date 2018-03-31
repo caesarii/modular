@@ -23,7 +23,7 @@ const undefEvents = null
 const handlers = require('./handlers')
 
 const commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg
-const cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g
+const cjsRequireRegExp = /[^.]\s*requirejs\s*\(\s*["']([^'"\s]+)["']\s*\)/g
 const jsSuffixRegExp = /\.js$/
 const currDirRegExp = /^\.\//
 const readyRegExp = isBrowser && navigator.platform === 'PLAYSTATION 3' ?

@@ -141,6 +141,19 @@ function makeError(id, msg, err, requireModules) {
     return e;
 }
 
+function getInteractiveScript() {
+    if (interactiveScript && interactiveScript.readyState === 'interactive') {
+        return interactiveScript;
+    }
+
+    eachReverse(scripts(), function (script) {
+        if (script.readyState === 'interactive') {
+            return (interactiveScript = script);
+        }
+    });
+    return interactiveScript;
+}
+
 module.exports = {
     op,
     ostring,
@@ -158,4 +171,5 @@ module.exports = {
     defaultOnError,
     getGlobal,
     makeError,
+    getInteractiveScript,
 }
