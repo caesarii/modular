@@ -477,7 +477,6 @@
         EXECUTED: 6
     }
     
-    
     function Module (uri, deps) {
         this.uri = uri
         this.dependencies = deps || []
