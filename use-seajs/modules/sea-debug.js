@@ -228,6 +228,7 @@
         return ret
     }
     
+    // 将模块的 id 转换为 uri, 调用 data 的方法完成
     function id2Uri (id, refUri) {
         if (!id) return ''
         
@@ -456,18 +457,20 @@
     var fetchedList = {}
     var callbackList = {}
     
+    // 模块的状态
     var STATUS = Module.STATUS = {
-        // 1 - The `module.uri` is being fetched
+        // 开始从服务端加载模块, module.uri 指定 url
         FETCHING: 1,
-        // 2 - The meta data has been saved to cachedMods
+        // 模块加载完成, 保存到 cachedMods
         SAVED: 2,
-        // 3 - The `module.dependencies` are being loaded
+
+        // 加载依赖模块 module.dependencies
         LOADING: 3,
-        // 4 - The module are ready to execute
+        // 依赖模块加载完成, 准备执行
         LOADED: 4,
-        // 5 - The module is being executed
+        // 模块执行中
         EXECUTING: 5,
-        // 6 - The `module.exports` is available
+        // 模块执行完成
         EXECUTED: 6
     }
     
@@ -477,20 +480,20 @@
         this.exports = null
         this.status = 0
         
-        // Who depends on me
+        // 依赖当前模块的模块
         this._waitings = {}
         
-        // The number of unloaded dependencies
+        // 未加载的依赖数
         this._remain = 0
     }
     
-    // Resolve module.dependencies
+    // 获取模块的依赖列表
     Module.prototype.resolve = function () {
-        var mod = this
-        var ids = mod.dependencies
-        var uris = []
+        const mod = this
+        const ids = mod.dependencies
+        const uris = []
         
-        for (var i = 0, len = ids.length; i < len; i++) {
+        for (let i = 0, len = ids.length; i < len; i++) {
             uris[i] = Module.resolve(ids[i], mod.uri)
         }
         return uris
@@ -498,61 +501,69 @@
     
     // Load module.dependencies and fire onload when all done
     Module.prototype.load = function () {
-        var mod = this
-        
-        // If the module is being loaded, just wait it onload call
+        const mod = this
+    
+        // 如果模块已经加载, 只需要等待 onload 调用
         if (mod.status >= STATUS.LOADING) {
             return
         }
-        
+    
+        // 更新为 loading 状态
         mod.status = STATUS.LOADING
-        
-        // Emit `load` event for plugins such as combo plugin
+    
+        // 获取当前模块的依赖列表
         var uris = mod.resolve()
+        // Emit `load` event for plugins such as combo plugin
         emit('load', uris)
-        
-        var len = mod._remain = uris.length
+    
+        mod._remain = uris.length
+        var len = uris.length
         var m
-        
+    
         // Initialize modules and register waitings
-        for (var i = 0; i < len; i++) {
+        // 处理所有依赖模块
+        for (let i = 0; i < len; i++) {
             m = Module.get(uris[i])
-            
+        
             if (m.status < STATUS.LOADED) {
+                //TODO  如果模块未加载, 说明该模块依赖当前模块 ?
                 // Maybe duplicate: When module has dupliate dependency, it should be it's count, not 1
                 m._waitings[mod.uri] = (m._waitings[mod.uri] || 0) + 1
-            }
-            else {
+            } else {
+                // 如果模块已加载
                 mod._remain--
             }
         }
         
         if (mod._remain === 0) {
+            // 如果全部依赖已加载, 则调用 onload
             mod.onload()
             return
-        }
-        
-        // Begin parallel loading
-        var requestCache = {}
-        
-        for (i = 0; i < len; i++) {
-            m = cachedMods[uris[i]]
+        } else {
+            // 加载未加载的依赖
+            // Begin parallel loading
+            var requestCache = {}
+            for (i = 0; i < len; i++) {
+                m = cachedMods[uris[i]]
             
-            if (m.status < STATUS.FETCHING) {
-                m.fetch(requestCache)
+                if (m.status < STATUS.FETCHING) {
+                    m.fetch(requestCache)
+                } else if (m.status === STATUS.SAVED) {
+                    m.load()
+                }
             }
-            else if (m.status === STATUS.SAVED) {
-                m.load()
-            }
-        }
         
-        // Send all requests at last to avoid cache bug in IE6-9. Issues#808
-        for (var requestUri in requestCache) {
-            if (requestCache.hasOwnProperty(requestUri)) {
-                requestCache[requestUri]()
+            // Send all requests at last to avoid cache bug in IE6-9. Issues#808
+            for (var requestUri in requestCache) {
+                if (requestCache.hasOwnProperty(requestUri)) {
+                    requestCache[requestUri]()
+                }
             }
         }
+    
+        
     }
+    
     
     // Call this method when module is loaded
     Module.prototype.onload = function () {
@@ -692,7 +703,7 @@
         return exports
     }
     
-    // Resolve id to uri
+    // 将 模块的 id 转换为 uri
     Module.resolve = function (id, refUri) {
         // Emit `resolve` event for plugins such as text plugin
         var emitData = { id: id, refUri: refUri }
@@ -768,14 +779,22 @@
         }
     }
     
-    // Get an existed module or create a new one
+    // 获取已存在的数组, 如果模块不存在则创建新模块
+    // deps 是数组
     Module.get = function (uri, deps) {
-        return cachedMods[uri] || (cachedMods[uri] = new Module(uri, deps))
+        const mod = cachedMods[uri]
+        if(mod) {
+            return mod
+        } else {
+            const newMod = new Module(uri, deps)
+            return newMod
+        }
     }
     
     // Use function is equal to load a anonymous module
     Module.use = function (ids, callback, uri) {
-        var mod = Module.get(uri, isArray(ids) ? ids : [ids])
+        // 获取模块
+        const mod = Module.get(uri, isArray(ids) ? ids : [ids])
         
         mod.callback = function () {
             var exports = []
@@ -795,8 +814,10 @@
         mod.load()
     }
     
-    // Load preload modules before all other modules
+    // 加载所有预加载模块
     Module.preload = function (callback) {
+        console.log('step3: preload')
+        
         var preloadMods = data.preload
         var len = preloadMods.length
         
@@ -808,16 +829,17 @@
                 // Allow preload modules to add new preload modules
                 Module.preload(callback)
             }, data.cwd + '_preload_' + cid())
-        }
-        else {
+        } else {
             callback()
         }
     }
     
     // Public API
-    
     seajs.use = function (ids, callback) {
+        console.log('step2: seajs.use', data.cwd, cid())
+        
         Module.preload(function () {
+            console.log('step4: load main script')
             Module.use(ids, callback, data.cwd + '_use_' + cid())
         })
         return seajs
@@ -845,6 +867,7 @@
      * config.js - The configuration for the loader
      */
     
+    // 初始化 data
     var BASE_RE = /^(.+?\/)(\?\?)?(seajs\/)+/
     
     // The root path to use for id2uri parsing
@@ -865,7 +888,9 @@
     //data.crossorigin = undefined
     
     // Modules that are needed to load before all other modules
+    // 初始化的结果是 preload 是一个空数组
     data.preload = (function () {
+        console.log('step0: 初始化 data.preload')
         var plugins = []
         
         // Convert `seajs-xxx` to `seajs-xxx=1`
@@ -879,39 +904,52 @@
         str.replace(/(seajs-\w+)=1/g, function (m, name) {
             plugins.push(name)
         })
-        
+        console.log('plugins', plugins)
         return plugins
     })()
     
     // data.alias - An object containing shorthands of module id
+    data.alias = {}
     // data.paths - An object containing path shorthands in module id
+    data.paths = {}
     // data.vars - The {xxx} variables in module id
+    data.vars = {}
     // data.map - An array containing rules to map module uri
+    data.map = []
     // data.debug - Debug mode. The default value is false
+    data.debug = false
+    // 初始化 data 结束
     
+    
+    // config api
+    // 依赖 addBase 方法, 必须在 data 初始化之后
     seajs.config = function (configData) {
+        console.log('step1; seajs.config')
         
-        for (var key in configData) {
-            var curr = configData[key]
-            var prev = data[key]
+        // 对 config 对象进行遍历, 将数据复制到 data
+        for (let key in configData) {
+            // 新配置项
+            let curr = configData[key]
+            // 之前的配置项
+            let prev = data[key]
             
-            // Merge object config such as alias, vars
+            // 合并对象类型的新旧配置项
             if (prev && isObject(prev)) {
                 for (var k in curr) {
                     prev[k] = curr[k]
                 }
-            }
-            else {
-                // Concat array config such as map, preload
+            } else {
+                // 合并数组类型的配置项
                 if (isArray(prev)) {
                     curr = prev.concat(curr)
-                }
-                // Make sure that `data.base` is an absolute path
-                else if (key === 'base') {
-                    // Make sure end with "/"
+                } else if (key === 'base') {
+                    // 处理 base 配置项, 确保 base 是绝对路径
+
+                    // 确保 base 以 / 结尾
                     if (curr.slice(-1) !== '/') {
                         curr += '/'
                     }
+                    // 生成真实 url
                     curr = addBase(curr)
                 }
                 
@@ -920,6 +958,7 @@
             }
         }
         
+        // 触发 config 事件
         emit('config', configData)
         return seajs
     }
