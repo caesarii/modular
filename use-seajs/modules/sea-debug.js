@@ -31,7 +31,6 @@
     var isUndefined = isType('Undefined')
     
     var _cid = 0
-    
     function cid () {
         return _cid++
     }
@@ -283,6 +282,7 @@
     var isOldWebKit = +navigator.userAgent
       .replace(/.*(?:AppleWebKit|AndroidWebKit)\/(\d+).*/, '$1') < 536
     
+    // 请求模块
     function request (url, callback, charset, crossorigin) {
         var isCSS = IS_CSS_RE.test(url)
         var node = doc.createElement(isCSS ? 'link' : 'script')
@@ -524,7 +524,6 @@
         // 处理所有依赖模块
         for (let i = 0; i < len; i++) {
             m = Module.get(uris[i])
-        
             if (m.status < STATUS.LOADED) {
                 //TODO  如果模块未加载, 说明该模块依赖当前模块 ?
                 // Maybe duplicate: When module has dupliate dependency, it should be it's count, not 1
@@ -539,25 +538,25 @@
             // 如果全部依赖已加载, 则调用 onload
             mod.onload()
             return
-        } else {
-            // 加载未加载的依赖
-            // Begin parallel loading
-            var requestCache = {}
-            for (i = 0; i < len; i++) {
-                m = cachedMods[uris[i]]
-            
-                if (m.status < STATUS.FETCHING) {
-                    m.fetch(requestCache)
-                } else if (m.status === STATUS.SAVED) {
-                    m.load()
-                }
-            }
+        }
+        // 加载未加载的依赖
+        // Begin parallel loading
+        var requestCache = {}
+        for (let i = 0; i < len; i++) {
+            console.log('ch', cachedMods)
+            m = cachedMods[uris[i]]
         
-            // Send all requests at last to avoid cache bug in IE6-9. Issues#808
-            for (var requestUri in requestCache) {
-                if (requestCache.hasOwnProperty(requestUri)) {
-                    requestCache[requestUri]()
-                }
+            if (m.status < STATUS.FETCHING) {
+                m.fetch(requestCache)
+            } else if (m.status === STATUS.SAVED) {
+                m.load()
+            }
+        }
+    
+        // Send all requests at last to avoid cache bug in IE6-9. Issues#808
+        for (var requestUri in requestCache) {
+            if (requestCache.hasOwnProperty(requestUri)) {
+                requestCache[requestUri]()
             }
         }
     
@@ -787,6 +786,7 @@
             return mod
         } else {
             const newMod = new Module(uri, deps)
+            cachedMods[uri] = newMod
             return newMod
         }
     }
@@ -846,6 +846,7 @@
     }
     
     Module.define.cmd = {}
+    
     global.define = Module.define
     
     // For Developers
