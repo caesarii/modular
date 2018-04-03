@@ -1,7 +1,7 @@
 /**
  * module.js - The core of module loader
  */
-
+import seajs from './sea'
 var cachedMods = seajs.cache = {}
 var anonymousMeta
 
@@ -371,12 +371,12 @@ Module.preload = function (callback) {
 
 // Public API
 
-seajs.use = function (ids, callback) {
-    Module.preload(function () {
-        Module.use(ids, callback, data.cwd + '_use_' + cid())
-    })
-    return seajs
-}
+// seajs.use = function (ids, callback) {
+//     Module.preload(function () {
+//         Module.use(ids, callback, data.cwd + '_use_' + cid())
+//     })
+//     return seajs
+// }
 
 Module.define.cmd = {}
 global.define = Module.define
@@ -396,3 +396,5 @@ seajs.require = function (id) {
     return mod.exports
 }
 
+
+export default Module
