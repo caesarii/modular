@@ -283,9 +283,10 @@
       .replace(/.*(?:AppleWebKit|AndroidWebKit)\/(\d+).*/, '$1') < 536
     
     // 请求模块
-    function request (url, callback, charset, crossorigin) {
-        var isCSS = IS_CSS_RE.test(url)
-        var node = doc.createElement(isCSS ? 'link' : 'script')
+    // For Developers
+    seajs.request = function (url, callback, charset, crossorigin) {
+        const isCSS = IS_CSS_RE.test(url)
+        const node = document.createElement(isCSS ? 'link' : 'script')
         
         if (charset) {
             node.charset = charset
@@ -301,8 +302,7 @@
         if (isCSS) {
             node.rel = 'stylesheet'
             node.href = url
-        }
-        else {
+        } else {
             node.async = true
             node.src = url
         }
@@ -422,8 +422,7 @@
         }
     }
     
-    // For Developers
-    seajs.request = request
+    
     
     /**
      * util-deps.js - The parser for dependencies
@@ -450,11 +449,15 @@
      * module.js - The core of module loader
      */
     
+    // 以创建的模块 new Module
     var cachedMods = seajs.cache = {}
     var anonymousMeta
     
+    // 正在 fetch 的模块
     var fetchingList = {}
+    // 已经 fetch 的模块
     var fetchedList = {}
+    // 待加载的模块
     var callbackList = {}
     
     // 模块的状态
@@ -501,6 +504,7 @@
     
     // Load module.dependencies and fire onload when all done
     Module.prototype.load = function () {
+        
         const mod = this
     
         // 如果模块已经加载, 只需要等待 onload 调用
@@ -534,35 +538,41 @@
             }
         }
         
+        
         if (mod._remain === 0) {
             // 如果全部依赖已加载, 则调用 onload
             mod.onload()
             return
-        }
-        // 加载未加载的依赖
-        // Begin parallel loading
-        var requestCache = {}
-        for (let i = 0; i < len; i++) {
-            console.log('ch', cachedMods)
-            m = cachedMods[uris[i]]
-        
-            if (m.status < STATUS.FETCHING) {
-                m.fetch(requestCache)
-            } else if (m.status === STATUS.SAVED) {
-                m.load()
+        } else {
+            // 加载未加载的依赖
+            // Begin parallel loading
+            var requestCache = {}
+
+            for (let i = 0; i < len; i++) {
+                m = cachedMods[uris[i]]
+            
+                if (m.status < STATUS.FETCHING) {
+                    // fetch
+                    // fetch 会修改 requestCache
+                    m.fetch(requestCache)
+                } else if (m.status === STATUS.SAVED) {
+                    // load
+                    m.load()
+                }
             }
-        }
-    
-        // Send all requests at last to avoid cache bug in IE6-9. Issues#808
-        for (var requestUri in requestCache) {
-            if (requestCache.hasOwnProperty(requestUri)) {
-                requestCache[requestUri]()
+            
+            // Send all requests at last to avoid cache bug in IE6-9. Issues#808
+            // 发送请求
+            for (var requestUri in requestCache) {
+                if (requestCache.hasOwnProperty(requestUri)) {
+                    requestCache[requestUri]()
+                }
             }
+            
         }
-    
         
+    
     }
-    
     
     // Call this method when module is loaded
     Module.prototype.onload = function () {
@@ -593,48 +603,63 @@
     }
     
     // Fetch a module
+    // fetch 实际上只是创建了请求, 保存在 requestCache, 请求是在 load 从 中发送的
     Module.prototype.fetch = function (requestCache) {
         var mod = this
         var uri = mod.uri
         
+        // 更新状态
         mod.status = STATUS.FETCHING
         
         // Emit `fetch` event for plugins such as combo plugin
         var emitData = { uri: uri }
         emit('fetch', emitData)
+        
         var requestUri = emitData.requestUri || uri
         
         // Empty uri or a non-CMD module
+        // 空 uri 或者 非 cmd 模块, 或者 模块已 fetch
         if (!requestUri || fetchedList[requestUri]) {
             mod.load()
             return
         }
         
+        // 正在 fetch
         if (fetchingList[requestUri]) {
             callbackList[requestUri].push(mod)
             return
         }
         
+        // fetch
         fetchingList[requestUri] = true
         callbackList[requestUri] = [mod]
         
-        // Emit `request` event for plugins such as text plugin
-        emit('request', emitData = {
+        emitData = {
             uri: uri,
             requestUri: requestUri,
             onRequest: onRequest,
             charset: isFunction(data.charset) ? data.charset(requestUri) : data.charset,
             crossorigin: isFunction(data.crossorigin) ? data.crossorigin(requestUri) : data.crossorigin
-        })
+        }
         
+        // Emit `request` event for plugins such as text plugin
+        emit('request', emitData)
+        
+        //
         if (!emitData.requested) {
-            requestCache ? requestCache[emitData.requestUri] = sendRequest : sendRequest()
+            // requestCache 第一次是 {}
+            if(requestCache) {
+                requestCache[emitData.requestUri] = sendRequest
+            } else {
+                sendRequest()
+            }
         }
         
         function sendRequest () {
             seajs.request(emitData.requestUri, emitData.onRequest, emitData.charset, emitData.crossorigin)
         }
         
+        // fetch 完成的回调
         function onRequest () {
             delete fetchingList[requestUri]
             fetchedList[requestUri] = true
@@ -645,10 +670,12 @@
                 anonymousMeta = null
             }
             
-            // Call callbacks
+            // 依赖模块加载完成, 加载当前模块
             var m, mods = callbackList[requestUri]
             delete callbackList[requestUri]
-            while ((m = mods.shift())) m.load()
+            while ((m = mods.shift())) {
+                m.load()
+            }
         }
     }
     
