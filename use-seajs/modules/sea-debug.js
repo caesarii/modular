@@ -7,12 +7,12 @@
         return
     }
     
-    var seajs = global.seajs = {
+    const seajs = global.seajs = {
         // The current version of Sea.js being used
         version: '2.2.3'
     }
     
-    var data = seajs.data = {}
+    const data = seajs.data = {}
     
     /**
      * util-lang.js - The minimal language enhancement
@@ -449,21 +449,12 @@
      * module.js - The core of module loader
      */
     
-    // 以创建的模块 new Module
-    var cachedMods = seajs.cache = {}
-    var anonymousMeta
-    
-    // 正在 fetch 的模块
-    var fetchingList = {}
-    // 已经 fetch 的模块
-    var fetchedList = {}
-    // 待加载的模块
-    var callbackList = {}
+   
     
     
+    seajs.cache = {}
     
     // Module 类
-    
     class Module {
         constructor(uri, deps) {
             this.uri = uri
@@ -479,6 +470,12 @@
             
             // 加载完成后的回调
             this.callback = null
+            
+            
+            
+            
+            
+            
         }
         
         // 获取模块的依赖列表
@@ -495,6 +492,7 @@
         
         // Load module.dependencies and fire onload when all done
         load() {
+            const {cachedMods, } = Module
             const self = this
         
             // 如果模块已经加载, 只需要等待 onload 调用
@@ -566,6 +564,7 @@
         
         // Call this method when module is loaded
         onload() {
+            const {cachedMods, } = Module
             const self = this
             self.status = STATUS.LOADED
             
@@ -594,6 +593,7 @@
         // Fetch a module
         // fetch 实际上只是创建了请求, 保存在 requestCache, 请求是在 load 从 中发送的
         fetch(requestCache) {
+            let {anonymousMeta, fetchingList, fetchedList, callbackList, } = Module
             const self = this
             const uri = self.uri
             
@@ -607,7 +607,7 @@
             const requestUri = emitData.requestUri || uri
             
             // Empty uri or a non-CMD module
-            // 空 uri 或者 非 cmd 模块, 或者 模块已 fetch
+            // 空 uri 或者 非 CMD 模块, 或者 模块已 fetch
             if (!requestUri || fetchedList[requestUri]) {
                 self.load()
                 return
@@ -693,7 +693,7 @@
             }
             
             require.async = function (ids, callback) {
-                Module.use(ids, callback, uri + '_async_' + cid())
+                self.use(ids, callback, uri + '_async_' + cid())
                 return require
             }
             
@@ -729,6 +729,7 @@
         
         // Define a module
         static define(id, deps, factory) {
+            let anonymousMeta = Module.anonymousMeta
             var argsLen = arguments.length
             
             // define(factory)
@@ -797,6 +798,7 @@
         // 获取已存在的数组, 如果模块不存在则创建新模块
         // deps 是数组
         static get(uri, deps) {
+            const {cachedMods, } = Module
             const mod = cachedMods[uri]
             if(mod) {
                 return mod
@@ -809,6 +811,7 @@
         
         // Use function is equal to load a anonymous module
         static use(ids, callback, uri) {
+            const {cachedMods, } = Module
             // 获取模块
             const mod = Module.get(uri, isArray(ids) ? ids : [ids])
             
@@ -839,7 +842,7 @@
             const len = preloadMods.length
             
             if (len) {
-                Module.use(preloadMods, function () {
+                this.use(preloadMods, function () {
                     // Remove the loaded preload modules
                     preloadMods.splice(0, len)
                     
@@ -851,7 +854,15 @@
             }
         }
     }
-    
+    Module.anonymousMeta = null
+    // 正在 fetch 的模块
+    Module.fetchingList = {}
+    // 已经 fetch 的模块
+    Module.fetchedList = {}
+    // 待加载的模块
+    Module.callbackList = {}
+    // 已创建的模块 new Module
+    Module.cachedMods = seajs.cache
     // 模块的状态
     const STATUS = Module.STATUS = {
         // 开始从服务端加载模块, module.uri 指定 url
@@ -1271,7 +1282,8 @@
     // For Developers
     
     seajs.Module = Module
-    data.fetchedList = fetchedList
+    // TODO
+    data.fetchedList = Module.fetchedList
     data.cid = cid
     
     seajs.require = function (id) {
