@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "babel src --watch --out-file seajs-debug.js"
+    "build": "babel src --watch --out-file sea-debug.js"
   },
   "dependencies": {
     "babel-cli": "^6.24.1",
