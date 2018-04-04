@@ -46,14 +46,17 @@
             this.version = '2.2.3'
             this.head = document.head || document.getElementsByTagName('head')[0] || document.documentElement
             this.currentlyAddingScript = null
+            
+            this._events = {}
+
 
         }
         
         // Bind event
         on (name, callback) {
-            var list = data.events[name] || (data.events[name] = [])
+            var list = this._events[name] || (this._events[name] = [])
             list.push(callback)
-            return seajs
+            return this
         }
         
         // Remove event. If `callback` is undefined, remove all callbacks for the
@@ -62,12 +65,12 @@
         off (name, callback) {
             // Remove *all* events
             if (!(name || callback)) {
-                data.events = {}
-                data.events = {}
-                return seajs
+                this._events = {}
+                this._events = {}
+                return this
             }
             
-            var list = data.events[name]
+            var list = this._events[name]
             if (list) {
                 if (callback) {
                     for (var i = list.length - 1; i >= 0; i--) {
@@ -77,17 +80,17 @@
                     }
                 }
                 else {
-                    delete data.events[name]
+                    delete this._events[name]
                 }
             }
             
-            return seajs
+            return this
         }
         
         // Emit event, firing all bound callbacks. Callbacks receive the same
         // arguments as `emit` does, apart from the event name
         emit (name, configData) {
-            var list = data.events[name]
+            var list = this._events[name]
             let fn
             
             if (list) {
@@ -100,10 +103,10 @@
                 }
             }
             
-            return seajs
+            return this
         }
         
-        addBase (id, refUri) {
+        static _addBase (id, refUri) {
             var ABSOLUTE_RE = /^\/\/.|:\//
             var ROOT_DIR_RE = /^.*?\/\/.*?\//
             // Canonicalize a path
@@ -233,7 +236,7 @@
             id = parseVars(id)
             id = normalize(id)
             
-            var uri = this.addBase(id, refUri)
+            var uri = Seajs._addBase(id, refUri)
             uri = parseMap(uri)
             
             return uri
@@ -407,7 +410,7 @@
                             curr += '/'
                         }
                         // 生成真实 url
-                        curr = this.addBase(curr)
+                        curr = Seajs._addBase(curr)
                     }
                     
                     // Set config
@@ -933,7 +936,6 @@
             // The loader directory
             this.dir = null
             
-            this.events = {}
             this.fetchedList = Module.fetchedList
             this._cid = 0
             
@@ -1018,7 +1020,6 @@
         })
         return seajs
     }
-    
     
     /**
      * util-lang.js - The minimal language enhancement
