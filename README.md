@@ -2,6 +2,6 @@
 
 ### module parttern
 
-### fake-seajs
+### seajs
 
-### fake requirejs
+### requirejs
